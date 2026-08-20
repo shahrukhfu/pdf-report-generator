@@ -1,0 +1,4 @@
+report.db
+reports/
+.venv/
+__pycache__/
