@@ -1,8 +1,10 @@
 import os
 import sqlite3
 from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from report_data import get_report_data
 from renderer import generate_report_html, render_pdf
@@ -11,6 +13,10 @@ DB_NAME = "report.db"
 REPORTS_DIR = "reports"
 
 app = FastAPI(title="PDF Report Generator API")
+
+
+class ReportRequest(BaseModel):
+    force: bool = False
 
 
 def init_db():
@@ -38,15 +44,40 @@ def health_check():
     return {"status": "ok"}
 
 
-@app.post("/reports", status_code=status.HTTP_201_CREATED)
-async def create_report():
+@app.post("/reports")
+async def create_report(req: Optional[ReportRequest] = None):
     init_db()
-    
-    # 1. Fetch aggregated data & generate HTML
+    force = req.force if req is not None else False
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
+    # If force is False, check for existing report created today
+    if not force:
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, path, created_at FROM reports 
+            WHERE date(created_at) = ? 
+            ORDER BY id DESC LIMIT 1
+        """, (today_str,))
+        existing = cursor.fetchone()
+        conn.close()
+
+        if existing and os.path.exists(existing["path"]):
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    "id": existing["id"],
+                    "file": f"/reports/{existing['id']}/file",
+                    "created_at": existing["created_at"]
+                }
+            )
+
+    # Fetch aggregated data & generate HTML
     data = get_report_data(DB_NAME)
     html_content = generate_report_html(data)
 
-    # 2. Insert record into DB to acquire ID
+    # Insert record into DB to acquire ID
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -59,15 +90,18 @@ async def create_report():
     conn.commit()
     conn.close()
 
-    # 3. Render PDF to disk
+    # Render PDF to disk
     await render_pdf(html_content, pdf_path)
 
-    # 4. Return 201 response with link
-    return {
-        "id": report_id,
-        "file": f"/reports/{report_id}/file",
-        "created_at": created_at
-    }
+    # Return 201 Created response
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={
+            "id": report_id,
+            "file": f"/reports/{report_id}/file",
+            "created_at": created_at
+        }
+    )
 
 
 @app.get("/reports/{report_id}")
