@@ -1,69 +1,67 @@
-# PDF Report Generator
+![PDF Report Generator Banner](banner.svg)
 
-An automated PDF report generation and serving service built with **FastAPI**, **Playwright (Chromium)**, and **SQLite**. It aggregates raw sales data using SQL queries, formats it into styled HTML with strict print pagination CSS, renders a PDF document via headless Chromium, and serves it using the "Store and Link" pattern.
-
----
-
-## 🏗️ Architecture Breakdown
-
-The application operates as a 4-stage pipeline:
-
-```
-[ SQLite DB ] ──( 1. Query )──> [ Aggregated Metrics ] ──( 2. Render )──> [ Playwright Chromium ] ──( 3. Store )──> [ Disk & DB ] ──( 4. Serve )──> [ Client / REST API ]
-```
-
-1. **Query**: Aggregates ~200 order records from `report.db` into summary metrics, top products, daily breakdowns, and itemized rows via optimized SQL queries.
-2. **Render**: Injects aggregated data into an HTML template with CSS print rules (`@page`, `thead` repetition, `break-inside: avoid`) for clean page pagination.
-3. **Store**: Spawns a headless Chromium browser instance using Playwright, renders the HTML to A4 PDF, saves it to `reports/<id>.pdf`, and records the metadata in the `reports` database table.
-4. **Serve**: Exposes REST endpoints to query report metadata or stream PDF files on demand (`GET /reports/{id}/file`).
+An automated PDF report generation and streaming service engineered with **FastAPI**, **Playwright (Chromium)**, and **SQLite**. The system aggregates sales datasets using optimized SQL queries, constructs responsive HTML templates governed by strict print CSS rules, renders multi-page PDF documents via headless Chromium, and serves them through the "Store and Link" pattern.
 
 ---
 
-## 🚀 Setup & Run Instructions
+## Architecture Breakdown
 
-### 1. Prerequisites & Installation
+![Pipeline Workflow](pipeline.svg)
+
+1. **Query**: Aggregates ~200 order records from `report.db` into core performance metrics, top product rankings, daily revenue trends, and detailed order rows.
+2. **Render**: Injects aggregated data into an HTML document configured with `@page` styling, `thead` repetition rules, and page-break isolation (`break-inside: avoid`).
+3. **Store**: Spawns headless Chromium via Playwright, renders HTML to A4 PDF, saves to disk (`reports/<id>.pdf`), and logs metadata in the database `reports` table.
+4. **Serve**: Exposes REST endpoints to query report status or stream PDF binary streams directly (`GET /reports/{id}/file`).
+
+---
+
+## Setup and Installation
+
+### 1. Environment Preparation
 
 ```bash
-# Clone repository
+# Clone the repository
 git clone https://github.com/shahrukhfu/pdf-report-generator.git
 cd "PDF Report Generator"
 
-# Install dependencies
+# Install Python dependencies
 pip install fastapi uvicorn playwright pypdf
 
 # Install headless Chromium browser
 playwright install chromium
 ```
 
-### 2. Seed Database
+### 2. Database Seeding
 
-Initialize and seed `report.db` with ~200 randomized sales records:
+Initialize and populate `report.db` with ~200 randomized sales records:
 
 ```bash
 python seed.py
 ```
 
-### 3. Start FastAPI Web Server
+### 3. Launch Web Server
 
 ```bash
 uvicorn main:app --reload
 ```
-The server will run at `http://127.0.0.1:8000`.
+Server active at: `http://127.0.0.1:8000`
 
 ---
 
-## 📊 SQL Aggregation Queries
+## Data Aggregation SQL Queries
 
-The report data pipeline relies on four main SQLite aggregation queries in `report_data.py`:
+The core data pipeline executes four distinct SQL queries in `report_data.py`:
 
 * **Total Orders**:
   ```sql
   SELECT COUNT(*) FROM orders;
   ```
+
 * **Total Revenue**:
   ```sql
   SELECT SUM(amount) FROM orders;
   ```
+
 * **Top 5 Products by Revenue**:
   ```sql
   SELECT product, SUM(amount) AS total_sales, COUNT(*) AS count 
@@ -72,6 +70,7 @@ The report data pipeline relies on four main SQLite aggregation queries in `repo
   ORDER BY total_sales DESC 
   LIMIT 5;
   ```
+
 * **Daily Orders (Last 7 Days)**:
   ```sql
   SELECT date(created_at) AS day, COUNT(*) AS order_count, SUM(amount) AS daily_revenue 
@@ -83,9 +82,9 @@ The report data pipeline relies on four main SQLite aggregation queries in `repo
 
 ---
 
-## 📡 API Reference & cURL Examples
+## API Documentation & cURL Verification
 
-### 1. Health Check
+### Health Endpoint
 ```bash
 curl -X GET http://127.0.0.1:8000/health
 ```
@@ -94,15 +93,15 @@ curl -X GET http://127.0.0.1:8000/health
 {"status": "ok"}
 ```
 
-### 2. Generate PDF Report (POST /reports)
+### Generate Report (POST /reports)
 
-* **Standard Request (Deduplicated):**
+* **Standard Deduplicated Request:**
   ```bash
   curl -X POST http://127.0.0.1:8000/reports
   ```
-  *Returns existing report created today with `200 OK` if available, or `201 Created` if creating a new one.*
+  *Returns an existing report generated today with status `200 OK`, or creates a new report returning `201 Created`.*
 
-* **Force Generation:**
+* **Forced Generation Request:**
   ```bash
   curl -X POST http://127.0.0.1:8000/reports \
     -H "Content-Type: application/json" \
@@ -118,7 +117,7 @@ curl -X GET http://127.0.0.1:8000/health
 }
 ```
 
-### 3. Get Report Metadata (GET /reports/{id})
+### Report Metadata (GET /reports/{id})
 ```bash
 curl -X GET http://127.0.0.1:8000/reports/1
 ```
@@ -132,25 +131,25 @@ curl -X GET http://127.0.0.1:8000/reports/1
 }
 ```
 
-### 4. Download PDF Report File (GET /reports/{id}/file)
+### Download PDF File (GET /reports/{id}/file)
 ```bash
 curl -X GET http://127.0.0.1:8000/reports/1/file --output report_download.pdf
 ```
 
 ---
 
-## 🧠 Architectural & Performance Analysis
+## Technical & Architectural Insights
 
-1. **Synchronous PDF Rendering & Worker Queue Transition**:
-   Generating PDFs synchronously inside an HTTP request handler introduces significant latency (often 500ms–2000ms+) because launching a headless browser process and rendering a multi-page document is CPU- and memory-intensive; under high concurrency, this saturates server worker threads and degrades throughput. To prevent request timeouts and server exhaustion, PDF generation should be offloaded to an asynchronous background task queue (such as Celery, Redis Queue, or ARQ), allowing web endpoints to return a fast `202 Accepted` response while background workers process the jobs.
+1. **Synchronous PDF Rendering Latency & Queue Offloading**:
+   Executing headless browser invocations synchronously within an HTTP request lifecycle introduces significant latency (500ms–2000ms+ per document). Under elevated concurrency, synchronous Playwright rendering consumes substantial CPU cores and worker threads, causing queue congestion and request timeouts. To maintain high availability and responsiveness, production systems offload PDF rendering tasks to an asynchronous background worker queue (such as Celery, RQ, or ARQ), returning an immediate `202 Accepted` job token to the client.
 
-2. **Idempotency & Cost/Storage Efficiency**:
-   Implementing idempotent report generation ensures that repeated requests for the same daily period return a cached, pre-rendered PDF link rather than spawning browser subprocesses and generating redundant files. This deduplication saves substantial CPU compute cycles, reduces disk I/O load, and avoids cluttering storage with identical binary report files.
+2. **Idempotency & Cost Optimization**:
+   Implementing date-bounded deduplication on report generation requests prevents redundant Chromium rendering cycles for identical daily windows. Re-serving cached report assets eliminates unnecessary CPU processing, lowers disk I/O load, and optimizes storage resource utilization.
 
 ---
 
-## 📄 Generated Report Preview
+## Report Output Sample
 
-Below is a preview of Page 1 of the generated PDF report:
+Below is an exported preview of Page 1 of the generated PDF document:
 
-![Report Preview](report_preview.png)
+![Report Preview Page 1](report_preview.png)

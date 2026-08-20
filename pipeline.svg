@@ -1,0 +1,96 @@
+<svg fill="none" viewBox="0 0 800 160" width="100%" height="160" xmlns="http://www.w3.org/2000/svg">
+  <foreignObject width="100%" height="100%">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <style>
+        .flow-container {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          height: 160px;
+          padding: 20px;
+          box-sizing: border-box;
+          background: #0f172a;
+          border-radius: 10px;
+          border: 1px solid #1e293b;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .step {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          width: 150px;
+          height: 90px;
+          background: #1e293b;
+          border-radius: 8px;
+          border: 1px solid #334155;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          transition: transform 0.3s ease;
+        }
+
+        .step-num {
+          font-size: 10px;
+          font-weight: 700;
+          color: #38bdf8;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 4px;
+        }
+
+        .step-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #f8fafc;
+        }
+
+        .step-sub {
+          font-size: 11px;
+          color: #94a3b8;
+          margin-top: 2px;
+        }
+
+        .arrow {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #38bdf8;
+          font-size: 20px;
+          font-weight: bold;
+          animation: pulseArrow 1.5s infinite alternate;
+        }
+
+        @keyframes pulseArrow {
+          0% { opacity: 0.3; transform: translateX(-4px); }
+          100% { opacity: 1; transform: translateX(4px); }
+        }
+      </style>
+
+      <div class="flow-container">
+        <div class="step">
+          <span class="step-num">STAGE 1</span>
+          <span class="step-title">QUERY</span>
+          <span class="step-sub">SQLite Data Agg</span>
+        </div>
+        <div class="arrow">➔</div>
+        <div class="step">
+          <span class="step-num">STAGE 2</span>
+          <span class="step-title">RENDER</span>
+          <span class="step-sub">HTML &amp; Print CSS</span>
+        </div>
+        <div class="arrow">➔</div>
+        <div class="step">
+          <span class="step-num">STAGE 3</span>
+          <span class="step-title">STORE</span>
+          <span class="step-sub">Playwright Chromium</span>
+        </div>
+        <div class="arrow">➔</div>
+        <div class="step">
+          <span class="step-num">STAGE 4</span>
+          <span class="step-title">SERVE</span>
+          <span class="step-sub">FastAPI Link Stream</span>
+        </div>
+      </div>
+    </div>
+  </foreignObject>
+</svg>
